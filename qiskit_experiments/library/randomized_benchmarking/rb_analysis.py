@@ -110,7 +110,7 @@ class RBAnalysis(curve.CurveAnalysis):
     def _generate_fit_guesses(
         self,
         user_opt: curve.FitOptions,
-        curve_data: curve.CurveData,
+        curve_data: curve.ScatterTable,
     ) -> Union[curve.FitOptions, List[curve.FitOptions]]:
         """Create algorithmic initial fit guess from analysis options and curve data.
 
@@ -324,6 +324,7 @@ def _lookup_epg_ratio(gate: str, n_qubits: int) -> Union[None, int]:
         "cy": 1.0,
         "cz": 1.0,
         "ch": 1.0,
+        "ecr": 1.0,
         "crx": 2.0,
         "cry": 2.0,
         "crz": 2.0,

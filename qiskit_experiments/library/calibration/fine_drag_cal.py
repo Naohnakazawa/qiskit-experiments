@@ -30,7 +30,7 @@ from qiskit_experiments.library.characterization.fine_drag import FineDrag
 
 
 class FineDragCal(BaseCalibrationExperiment, FineDrag):
-    """A calibration version of the fine drag experiment."""
+    """A calibration version of the fine DRAG experiment."""
 
     def __init__(
         self,
@@ -41,7 +41,7 @@ class FineDragCal(BaseCalibrationExperiment, FineDrag):
         cal_parameter_name: Optional[str] = "β",
         auto_update: bool = True,
     ):
-        r"""See class :class:`FineDrag` for details.
+        r"""See class :class:`.FineDrag` for details.
 
         Note that this class implicitly assumes that the target angle of the gate
         is :math:`\pi` as seen from the default experiment options.
@@ -65,8 +65,6 @@ class FineDragCal(BaseCalibrationExperiment, FineDrag):
             cal_parameter_name=cal_parameter_name,
             auto_update=auto_update,
         )
-
-        self.set_transpile_options(basis_gates=["sx", schedule_name, "rz"])
 
     @classmethod
     def _default_experiment_options(cls) -> Options:
@@ -148,7 +146,7 @@ class FineDragCal(BaseCalibrationExperiment, FineDrag):
 
 
 class FineXDragCal(FineDragCal):
-    """Fine drag calibration of X gate."""
+    """Fine DRAG calibration of X gate."""
 
     def __init__(
         self,
@@ -158,7 +156,7 @@ class FineXDragCal(FineDragCal):
         cal_parameter_name: Optional[str] = "β",
         auto_update: bool = True,
     ):
-        r"""see class :class:`FineDrag` for details.
+        r"""see class :class:`.FineDrag` for details.
 
         Args:
             physical_qubits: Sequence containing the qubit for which to run the
@@ -180,7 +178,7 @@ class FineXDragCal(FineDragCal):
 
 
 class FineSXDragCal(FineDragCal):
-    """Fine drag calibration of X gate."""
+    """Fine DRAG calibration of X gate."""
 
     def __init__(
         self,
@@ -190,7 +188,7 @@ class FineSXDragCal(FineDragCal):
         cal_parameter_name: Optional[str] = "β",
         auto_update: bool = True,
     ):
-        r"""see class :class:`FineDrag` for details.
+        r"""see class :class:`.FineDrag` for details.
 
         Args:
             physical_qubits: Sequence containing the qubit for which to run the

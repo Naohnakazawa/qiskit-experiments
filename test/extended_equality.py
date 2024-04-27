@@ -28,7 +28,6 @@ from multimethod import multimethod
 from qiskit_experiments.curve_analysis.curve_data import CurveFitResult
 from qiskit_experiments.data_processing import DataAction, DataProcessor
 from qiskit_experiments.database_service.utils import (
-    ThreadSafeDataFrame,
     ThreadSafeList,
     ThreadSafeOrderedDict,
 )
@@ -37,6 +36,8 @@ from qiskit_experiments.framework import (
     BaseExperiment,
     BaseAnalysis,
     AnalysisResult,
+    AnalysisResultTable,
+    ArtifactData,
 )
 from qiskit_experiments.visualization import BaseDrawer
 
@@ -249,7 +250,6 @@ def _check_service_analysis_results(
             "value",
             "extra",
             "device_components",
-            "result_id",
             "experiment_id",
             "chisq",
             "quality",
@@ -257,6 +257,27 @@ def _check_service_analysis_results(
             "tags",
             "auto_save",
             "source",
+        ],
+        data1=data1,
+        data2=data2,
+        **kwargs,
+    )
+
+
+@_is_equivalent_dispatcher.register
+def _check_artifact_data(
+    data1: ArtifactData,
+    data2: ArtifactData,
+    **kwargs,
+):
+    """Check equality of the ArtifactData class."""
+    return _check_all_attributes(
+        attrs=[
+            "name",
+            "data",
+            "device_components",
+            "experiment_id",
+            "experiment",
         ],
         data1=data1,
         data2=data2,
@@ -276,18 +297,55 @@ def _check_configurable_classes(
 
 @_is_equivalent_dispatcher.register
 def _check_dataframes(
-    data1: Union[pd.DataFrame, ThreadSafeDataFrame],
-    data2: Union[pd.DataFrame, ThreadSafeDataFrame],
+    data1: pd.DataFrame,
+    data2: pd.DataFrame,
     **kwargs,
 ):
     """Check equality of data frame which may involve Qiskit Experiments class value."""
-    if isinstance(data1, ThreadSafeDataFrame):
-        data1 = data1.container(collapse_extra=False)
-    if isinstance(data2, ThreadSafeDataFrame):
-        data2 = data2.container(collapse_extra=False)
     return is_equivalent(
         data1.to_dict(orient="index"),
         data2.to_dict(orient="index"),
+        **kwargs,
+    )
+
+
+@_is_equivalent_dispatcher.register
+def _check_result_table(
+    data1: AnalysisResultTable,
+    data2: AnalysisResultTable,
+    **kwargs,
+):
+    """Check equality of data frame which may involve Qiskit Experiments class value."""
+    table1 = data1.dataframe.to_dict(orient="index")
+    table2 = data2.dataframe.to_dict(orient="index")
+    for table in (table1, table2):
+        for result in table.values():
+            result.pop("created_time")
+            # Must ignore result ids because they are internally generated with
+            # random values by the ExperimentData wrapping object.
+            result.pop("result_id")
+    # Keys of the dict are based on the result ids so they must be ignored
+    # as well. Try to sort entries so equivalent entries will be in the same
+    # order.
+    table1 = sorted(
+        table1.values(),
+        key=lambda x: (
+            x["name"],
+            () if x["components"] is None else tuple(repr(d) for d in x["components"]),
+            x["value"],
+        ),
+    )
+    table2 = sorted(
+        table2.values(),
+        key=lambda x: (
+            x["name"],
+            () if x["components"] is None else tuple(repr(d) for d in x["components"]),
+            x["value"],
+        ),
+    )
+    return is_equivalent(
+        table1,
+        table2,
         **kwargs,
     )
 
@@ -329,7 +387,13 @@ def _check_experiment_data(
         data2.child_data(),
         **kwargs,
     )
-    return all([attributes_equiv, data_equiv, analysis_results_equiv, child_equiv])
+    artifact_equiv = is_equivalent(
+        data1.artifacts(),
+        data2.artifacts(),
+        **kwargs,
+    )
+
+    return all([attributes_equiv, data_equiv, analysis_results_equiv, child_equiv, artifact_equiv])
 
 
 def _check_all_attributes(

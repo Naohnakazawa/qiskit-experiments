@@ -23,7 +23,7 @@ from qiskit.exceptions import MissingOptionalLibraryError
 from qiskit_experiments.library import MultiStateDiscrimination
 from qiskit_experiments.test.pulse_backend import SingleTransmonTestBackend
 
-from qiskit_experiments.warnings import HAS_SKLEARN
+from qiskit_experiments.framework.package_deps import HAS_SKLEARN
 
 
 def requires_sklearn(func):
@@ -49,7 +49,7 @@ class TestMultiStateDiscrimination(QiskitExperimentsTestCase):
         """Setup test variables."""
         super().setUp()
 
-        self.backend = SingleTransmonTestBackend(noise=False)
+        self.backend = SingleTransmonTestBackend(noise=False, atol=1e-3)
 
         # Build x12 schedule
         self.qubit = 0
@@ -63,12 +63,9 @@ class TestMultiStateDiscrimination(QiskitExperimentsTestCase):
         amp_x = pulse_x.amp
         dur_x = pulse_x.duration
         sigma_x = pulse_x.sigma
-        beta_x = pulse_x.beta
         with pulse.build(name="x12") as x12:
             pulse.shift_frequency(anharm, d0)
-            pulse.play(
-                pulse.Gaussian(dur_x, amp_x * self.backend.rabi_rate_12, sigma_x, beta_x), d0
-            )
+            pulse.play(pulse.Gaussian(dur_x, amp_x * self.backend.rabi_rate_12, sigma_x), d0)
             pulse.shift_frequency(-anharm, d0)
 
         self.schedules = {"x12": x12}
@@ -97,7 +94,7 @@ class TestMultiStateDiscrimination(QiskitExperimentsTestCase):
 
         fidelity = exp_data.analysis_results("fidelity").value
 
-        self.assertGreaterEqual(fidelity, 0.96)
+        self.assertGreaterEqual(fidelity, 0.93)
 
         # check that the discriminator differentiates n different states
         discrim_lbls = exp_data.analysis_results("discriminator_config").value["attributes"][

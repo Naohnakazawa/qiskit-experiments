@@ -52,7 +52,12 @@ class CompositeAnalysis(BaseAnalysis):
         experiment data.
     """
 
-    def __init__(self, analyses: List[BaseAnalysis], flatten_results: bool = None):
+    def __init__(
+        self,
+        analyses: List[BaseAnalysis],
+        flatten_results: bool = None,
+        generate_figures: Optional[str] = "always",
+    ):
         """Initialize a composite analysis class.
 
         Args:
@@ -62,6 +67,9 @@ class CompositeAnalysis(BaseAnalysis):
                              nested composite experiments. If False save each
                              component experiment results as a separate child
                              ExperimentData container.
+            generate_figures: Optional flag to set the figure generation behavior.
+                If ``always``, figures are always generated. If ``never``, figures are never generated.
+                If ``selective``, figures are generated if the analysis ``quality`` is ``bad``.
         """
         if flatten_results is None:
             # Backward compatibility for 0.6
@@ -78,6 +86,8 @@ class CompositeAnalysis(BaseAnalysis):
         self._flatten_results = False
         if flatten_results:
             self._set_flatten_results()
+
+        self._set_generate_figures(generate_figures)
 
     def component_analysis(
         self, index: Optional[int] = None
@@ -96,6 +106,14 @@ class CompositeAnalysis(BaseAnalysis):
             return self._analyses
         return self._analyses[index]
 
+    def set_options(self, **fields):
+        """Set the analysis options for the experiment. If the `broadcast` argument set to `True`, the
+        analysis options will cascade to the child experiments."""
+        super().set_options(**fields)
+        if fields.get("broadcast", None):
+            for sub_analysis in self._analyses:
+                sub_analysis.set_options(**fields)
+
     def copy(self):
         ret = super().copy()
         # Recursively copy analysis
@@ -113,7 +131,7 @@ class CompositeAnalysis(BaseAnalysis):
             experiment_data = experiment_data.copy()
 
         if not self._flatten_results:
-            # Initialize child components if they are not initalized
+            # Initialize child components if they are not initialized
             # This only needs to be done if results are not being flattened
             self._add_child_data(experiment_data)
 
@@ -217,7 +235,10 @@ class CompositeAnalysis(BaseAnalysis):
                 if index not in marginalized_data:
                     # Initialize data list for marginalized
                     marginalized_data[index] = []
-                sub_data = {"metadata": metadata["composite_metadata"][i]}
+                sub_data = {
+                    k: v for k, v in datum.items() if k not in ("metadata", "counts", "memory")
+                }
+                sub_data["metadata"] = metadata["composite_metadata"][i]
                 if "counts" in datum:
                     if composite_clbits is not None:
                         sub_data["counts"] = marginal_distribution(
@@ -342,6 +363,15 @@ class CompositeAnalysis(BaseAnalysis):
             if isinstance(analysis, CompositeAnalysis):
                 analysis._set_flatten_results()
 
+    def _set_generate_figures(self, generate_figures):
+        """Recursively propagate ``generate_figures`` to all child experiments."""
+        self._generate_figures = generate_figures
+        for analysis in self._analyses:
+            if isinstance(analysis, CompositeAnalysis):
+                analysis._set_generate_figures(generate_figures)
+            else:
+                analysis._generate_figures = generate_figures
+
     def _combine_results(
         self,
         component_experiment_data: List[ExperimentData],
@@ -376,5 +406,7 @@ class CompositeAnalysis(BaseAnalysis):
             for _, series in analysis_table.iterrows():
                 data = AnalysisResultData.from_table_element(**series.to_dict())
                 analysis_results.append(data)
+            for artifact in sub_expdata.artifacts():
+                analysis_results.append(artifact)
 
         return analysis_results, figures

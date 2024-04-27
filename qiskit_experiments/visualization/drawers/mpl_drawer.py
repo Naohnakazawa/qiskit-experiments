@@ -12,6 +12,7 @@
 
 """Curve drawer for matplotlib backend."""
 
+import numbers
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -79,6 +80,9 @@ class MplDrawer(BaseDrawer):
         else:
             axis = self.options.axis
 
+        sharex = self.figure_options.sharex
+        sharey = self.figure_options.sharey
+
         n_rows, n_cols = self.options.subplots
         n_subplots = n_cols * n_rows
         if n_subplots > 1:
@@ -87,21 +91,59 @@ class MplDrawer(BaseDrawer):
             # especially when the analysis consists of multiple curves.
             # Inset axis is experimental implementation of matplotlib 3.0 so maybe unstable API.
             # This draws inset axes with shared x and y axis.
-            inset_ax_h = 1 / n_rows
-            inset_ax_w = 1 / n_cols
-            for i in range(n_rows):
-                for j in range(n_cols):
+            if (
+                self.figure_options.get("custom_style", {}).get("style_name") == "residuals"
+                and n_subplots != 2
+            ):
+                # raising an error for residual plotting that isn't on individual plot per figure.
+                raise QiskitError(
+                    "Residual plots and residual plotting style is supported for "
+                    "figures with one sub-plot only."
+                )
+
+            inset_ax_h_list = self.figure_options.custom_style.get(
+                "sub_plot_heights_list", [1 / n_rows] * n_rows
+            )
+            inset_ax_w_list = self.figure_options.custom_style.get(
+                "sub_plot_widths_list", [1 / n_cols] * n_cols
+            )
+
+            # Check that the heights and widths are lists.
+            if (not isinstance(inset_ax_h_list, List)) or (not isinstance(inset_ax_w_list, List)):
+                raise QiskitError(
+                    "Sub-plots heights and widths list need to be a list of floats that sum"
+                    " up to 1"
+                )
+
+            # adding a check for correct sizes of subplots.
+            if not np.isclose(sum(inset_ax_h_list), 1) or not np.isclose(sum(inset_ax_w_list), 1):
+                raise QiskitError(
+                    "The subplots aren't covering all the figure. "
+                    "Check subplots heights and widths configurations."
+                )
+
+            # setting the row tracker.
+            sum_heights = 0
+            for i, inset_ax_h in enumerate(inset_ax_h_list):
+                # updating row tracker.
+                sum_heights += inset_ax_h
+
+                # setting column tracker.
+                sum_widths = 0
+
+                for j, inset_ax_w in enumerate(inset_ax_w_list):
                     # x0, y0, width, height
                     bounds = [
-                        inset_ax_w * j,
-                        1 - inset_ax_h * (i + 1),
+                        sum_widths,
+                        1 - sum_heights,
                         inset_ax_w,
                         inset_ax_h,
                     ]
+
                     sub_ax = axis.inset_axes(bounds, transform=axis.transAxes, zorder=1)
-                    if j != 0:
+                    if j != 0 and sharey:
                         # remove y axis except for most-left plot
-                        sub_ax.set_yticklabels([])
+                        sub_ax.yaxis.set_tick_params(labelleft=False)
                     else:
                         # this axis locates at left, write y-label
                         if self.figure_options.ylabel:
@@ -110,9 +152,9 @@ class MplDrawer(BaseDrawer):
                                 # Y label can be given as a list for each sub axis
                                 label = label[i]
                             sub_ax.set_ylabel(label, fontsize=self.style["axis_label_size"])
-                    if i != n_rows - 1:
+                    if i != n_rows - 1 and sharex:
                         # remove x axis except for most-bottom plot
-                        sub_ax.set_xticklabels([])
+                        sub_ax.xaxis.set_tick_params(labelleft=False)
                     else:
                         # this axis locates at bottom, write x-label
                         if self.figure_options.xlabel:
@@ -125,6 +167,9 @@ class MplDrawer(BaseDrawer):
                         # Set label size for outer axes where labels are drawn
                         sub_ax.tick_params(labelsize=self.style["tick_label_size"])
                     sub_ax.grid()
+
+                    # updating where we are on the grid.
+                    sum_widths += inset_ax_w
 
             # Remove original axis frames
             axis.axis("off")
@@ -143,115 +188,135 @@ class MplDrawer(BaseDrawer):
         else:
             all_axes = [self._axis]
 
-        # Add data labels if there are multiple labels registered per sub_ax.
-        for sub_ax in all_axes:
+        # Set axes scale. This needs to be done before anything tries to work with
+        # the axis limits because if no limits or data are set explicitly the
+        # default limits depend on the scale method (for example, the minimum
+        # value is 0 for linear scaling but not for log scaling).
+        def signed_sqrt(x):
+            return np.sign(x) * np.sqrt(abs(x))
+
+        def signed_square(x):
+            return np.sign(x) * x**2
+
+        for ax_type in ("x", "y"):
+            for sub_ax in all_axes:
+                scale = self.figure_options.get(f"{ax_type}scale")
+                if ax_type == "x":
+                    mpl_setscale = sub_ax.set_xscale
+                else:
+                    mpl_setscale = sub_ax.set_yscale
+
+                # Apply non linear axis spacing
+                if scale is not None:
+                    if scale == "quadratic":
+                        mpl_setscale("function", functions=(signed_square, signed_sqrt))
+                    else:
+                        mpl_setscale(scale)
+
+        # Get axis formatter from drawing options
+        formatter_opts = {}
+        for ax_type in ("x", "y"):
+            limit = self.figure_options.get(f"{ax_type}lim")
+            unit = self.figure_options.get(f"{ax_type}val_unit")
+            unit_scale = self.figure_options.get(f"{ax_type}val_unit_scale")
+
+            # Format options to a list for each axis
+            if limit is None or isinstance(limit[0], numbers.Number):
+                limit = [limit] * len(all_axes)
+            if unit is None or isinstance(unit, str):
+                unit = [unit] * len(all_axes)
+            if isinstance(unit_scale, bool):
+                unit_scale = [unit_scale] * len(all_axes)
+
+            # Compute min-max value for auto scaling
+            min_vals = []
+            max_vals = []
+            for sub_ax in all_axes:
+                if ax_type == "x":
+                    min_v, max_v = sub_ax.get_xlim()
+                else:
+                    min_v, max_v = sub_ax.get_ylim()
+                min_vals.append(min_v)
+                max_vals.append(max_v)
+
+            formatter_opts[ax_type] = {
+                "limit": limit,
+                "unit": unit,
+                "unit_scale": unit_scale,
+                "min_ax_vals": min_vals,
+                "max_ax_vals": max_vals,
+            }
+
+        for i, sub_ax in enumerate(all_axes):
+            # Add data labels if there are multiple labels registered per sub_ax.
             _, labels = sub_ax.get_legend_handles_labels()
             if len(labels) > 1:
                 sub_ax.legend(loc=self.style["legend_loc"])
 
-        # Format x and y axis
-        for ax_type in ("x", "y"):
-            # Get axis formatter from drawing options
-            if ax_type == "x":
-                lim = self.figure_options.xlim
-                unit = self.figure_options.xval_unit
-                unit_scale = self.figure_options.xval_unit_scale
-            else:
-                lim = self.figure_options.ylim
-                unit = self.figure_options.yval_unit
-                unit_scale = self.figure_options.yval_unit_scale
+            for ax_type in ("x", "y"):
+                limit = formatter_opts[ax_type]["limit"][i]
+                unit = formatter_opts[ax_type]["unit"][i]
+                unit_scale = formatter_opts[ax_type]["unit_scale"][i]
+                min_ax_vals = formatter_opts[ax_type]["min_ax_vals"]
+                max_ax_vals = formatter_opts[ax_type]["max_ax_vals"]
+                share_axis = self.figure_options.get(f"share{ax_type}")
 
-            # Compute data range from auto scale
-            if not lim:
-                v0 = np.nan
-                v1 = np.nan
-                for sub_ax in all_axes:
-                    if ax_type == "x":
-                        this_v0, this_v1 = sub_ax.get_xlim()
-                    else:
-                        this_v0, this_v1 = sub_ax.get_ylim()
-                    v0 = np.nanmin([v0, this_v0])
-                    v1 = np.nanmax([v1, this_v1])
-                lim = (v0, v1)
-
-            # Format scaling (log, quadratic, linear, etc.)
-            def signed_sqrt(x):
-                return np.sign(x) * np.sqrt(abs(x))
-
-            def signed_square(x):
-                return np.sign(x) * x**2
-
-            for sub_ax in all_axes:
                 if ax_type == "x":
-                    scale_opt = self.figure_options.xscale
-                    scale_function = sub_ax.set_xscale
+                    mpl_axis_obj = getattr(sub_ax, "xaxis")
+                    mpl_setlimit = sub_ax.set_xlim
+                    mpl_share = sub_ax.sharex
                 else:
-                    scale_opt = self.figure_options.yscale
-                    scale_function = sub_ax.set_yscale
+                    mpl_axis_obj = getattr(sub_ax, "yaxis")
+                    mpl_setlimit = sub_ax.set_ylim
+                    mpl_share = sub_ax.sharey
 
-                if scale_opt is not None:
-                    if scale_opt == "quadratic":
-                        scale_function("function", functions=(signed_square, signed_sqrt))
+                if limit is None:
+                    if share_axis:
+                        limit = min(min_ax_vals), max(max_ax_vals)
                     else:
-                        scale_function(scale_opt)
+                        limit = min_ax_vals[i], max_ax_vals[i]
 
-            # Format axis number notation
-            if unit and unit_scale:
-                # If value is specified, automatically scale axis magnitude
-                # and write prefix to axis label, i.e. 1e3 Hz -> 1 kHz
-                maxv = max(np.abs(lim[0]), np.abs(lim[1]))
-                try:
-                    scaled_maxv, prefix = detach_prefix(maxv, decimal=3)
-                    prefactor = scaled_maxv / maxv
-                except ValueError:
-                    prefix = ""
-                    prefactor = 1
-
-                formatter = MplDrawer.PrefixFormatter(prefactor)
-                units_str = f" [{prefix}{unit}]"
-            else:
-                # Use scientific notation with 3 digits, 1000 -> 1e3
-                formatter = ScalarFormatter()
-                formatter.set_scientific(True)
-                formatter.set_powerlimits((-3, 3))
-
-                units_str = f" [{unit}]" if unit else ""
-
-            for sub_ax in all_axes:
-                if ax_type == "x":
-                    ax = getattr(sub_ax, "xaxis")
-                    tick_labels = sub_ax.get_xticklabels()
+                # Create formatter for axis tick label notation
+                if unit and unit_scale:
+                    # If value is specified, automatically scale axis magnitude
+                    # and write prefix to axis label, i.e. 1e3 Hz -> 1 kHz
+                    maxv = max(np.abs(limit[0]), np.abs(limit[1]))
+                    try:
+                        scaled_maxv, prefix = detach_prefix(maxv, decimal=3)
+                        prefactor = scaled_maxv / maxv
+                    except ValueError:
+                        prefix = ""
+                        prefactor = 1
+                    formatter = MplDrawer.PrefixFormatter(prefactor)
+                    units_str = f" [{prefix}{unit}]"
                 else:
-                    ax = getattr(sub_ax, "yaxis")
-                    tick_labels = sub_ax.get_yticklabels()
+                    # Use scientific notation with 3 digits, 1000 -> 1e3
+                    formatter = ScalarFormatter()
+                    formatter.set_scientific(True)
+                    formatter.set_powerlimits((-3, 3))
+                    units_str = f" [{unit}]" if unit else ""
+                mpl_axis_obj.set_major_formatter(formatter)
 
-                if tick_labels:
-                    # Set formatter only when tick labels exist
-                    ax.set_major_formatter(formatter)
+                # Add units to axis label if both exist
                 if units_str:
-                    # Add units to label if both exist
-                    label_txt_obj = ax.get_label()
+                    label_txt_obj = mpl_axis_obj.get_label()
                     label_str = label_txt_obj.get_text()
                     if label_str:
                         label_txt_obj.set_text(label_str + units_str)
 
-            # Auto-scale all axes to the first sub axis
-            if ax_type == "x":
-                # get_shared_y_axes() is immutable from matplotlib>=3.6.0. Must use Axis.sharey()
-                # instead, but this can only be called once per axis. Here we call sharey  on all axes in
-                # a chain, which should have the same effect.
-                if len(all_axes) > 1:
-                    for ax1, ax2 in zip(all_axes[1:], all_axes[0:-1]):
-                        ax1.sharex(ax2)
-                all_axes[0].set_xlim(lim)
-            else:
-                # get_shared_y_axes() is immutable from matplotlib>=3.6.0. Must use Axis.sharey()
-                # instead, but this can only be called once per axis. Here we call sharey  on all axes in
-                # a chain, which should have the same effect.
-                if len(all_axes) > 1:
-                    for ax1, ax2 in zip(all_axes[1:], all_axes[0:-1]):
-                        ax1.sharey(ax2)
-                all_axes[0].set_ylim(lim)
+                # Consider axis sharing among subplots
+                if share_axis:
+                    if i == 0:
+                        # Limit is set to the first axis only.
+                        mpl_setlimit(limit)
+                    else:
+                        # get_shared_*_axes() is immutable from matplotlib>=3.6.0.
+                        # Must use Axis.share*() instead, but this can only be called once per axis.
+                        # Here we call share* on all axes in a chain, which should have the same effect.
+                        mpl_share(all_axes[i - 1])
+                else:
+                    mpl_setlimit(limit)
+
         # Add title
         if self.figure_options.figure_title is not None:
             self._axis.set_title(
@@ -292,6 +357,10 @@ class MplDrawer(BaseDrawer):
         Returns:
             Default color available in matplotlib.
         """
+        if self.figure_options.get("custom_style", {}).get("style_name") == "residuals":
+            if name[: -len("_residuals")] in self._series:
+                name = name[: -len("_residuals")]
+
         if name not in self._series:
             self._series.append(name)
 
@@ -412,12 +481,33 @@ class MplDrawer(BaseDrawer):
 
         draw_ops = {
             "color": color,
-            "linestyle": "-",
-            "linewidth": 2,
+            "linestyle": series_params.get("linestyle", "-"),
+            "linewidth": series_params.get("linewidth", 2),
         }
         self._update_label_in_options(draw_ops, name, label, legend)
         draw_ops.update(**options)
         self._get_axis(axis).plot(x_data, y_data, **draw_ops)
+
+    def hline(
+        self,
+        y_value: float,
+        name: Optional[SeriesName] = None,
+        label: Optional[str] = None,
+        legend: bool = False,
+        **options,
+    ):
+        series_params = self.figure_options.series_params.get(name, {})
+        axis = series_params.get("canvas", None)
+        color = series_params.get("color", self._get_default_color(name))
+
+        draw_ops = {
+            "color": color,
+            "linestyle": series_params.get("linestyle", "-"),
+            "linewidth": series_params.get("linewidth", 2),
+        }
+        self._update_label_in_options(draw_ops, name, label, legend)
+        draw_ops.update(**options)
+        self._get_axis(axis).axhline(y_value, **draw_ops)
 
     def filled_y_area(
         self,

@@ -12,10 +12,9 @@ measurement data manually.
 In this tutorial, we demonstrate how to calibrate single-qubit gates using the
 calibration framework in Qiskit Experiments. We will run experiments on our test pulse
 backend, :class:`.SingleTransmonTestBackend`, a backend that simulates the underlying
-pulses with `Qiskit Dynamics <https://qiskit.org/documentation/dynamics/>`_ on a
-three-level model of a transmon. You can also run these experiments on any real backend
-with Pulse enabled (see
-:external+qiskit:doc:`tutorials/circuits_advanced/08_gathering_system_information`).
+pulses with :mod:`qiskit_dynamics` on a three-level model of a transmon. You can also
+run these experiments on any real backend with Pulse enabled (see
+:class:`qiskit.providers.models.BackendConfiguration`).
 
 We will run experiments to 
 find the qubit frequency, calibrate the amplitude of DRAG pulses, and choose the value 
@@ -33,10 +32,6 @@ This automatic updating can also be disabled using the ``auto_update`` flag.
 .. note::
     This tutorial requires the :mod:`qiskit_dynamics` package to run simulations.
     You can install it with ``python -m pip install qiskit-dynamics``.
-
-.. note::
-    This tutorial requires the ``pandas`` package to visualize calibration tables.
-    You can install it with ``python -m pip install pandas``.
 
 .. jupyter-execute::
 
@@ -176,7 +171,7 @@ Instantiate the experiment and draw the first circuit in the sweep:
 .. jupyter-execute::
 
     circuit = spec.circuits()[0]
-    circuit.draw(output="mpl")
+    circuit.draw(output="mpl", style="iqp")
 
 We can also visualize the pulse schedule for the circuit:
 
@@ -200,8 +195,8 @@ Run the calibration experiment:
 
 The instance of ``calibrations`` has been automatically updated with the measured
 frequency, as shown below. In addition to the columns shown below, ``calibrations`` also
-store the group to which a value belongs, whether a values is valid or not and the
-experiment id that produce a value.
+stores the group to which a value belongs, whether a value is valid or not, and the
+experiment id that produced a value.
 
 .. jupyter-execute::
 
@@ -229,7 +224,7 @@ with different amplitudes.
 
 .. jupyter-execute::
 
-    rabi.circuits()[0].draw("mpl")
+    rabi.circuits()[0].draw(output="mpl", style="iqp")
 
 After the experiment completes the value of the amplitudes in the calibrations 
 will automatically be updated. This behaviour can be controlled using the ``auto_update``
@@ -320,7 +315,7 @@ negative amplitude.
     from qiskit_experiments.library import RoughDragCal
     cal_drag = RoughDragCal([qubit], cals, backend=backend, betas=np.linspace(-20, 20, 25))
     cal_drag.set_experiment_options(reps=[3, 5, 7])
-    cal_drag.circuits()[5].draw(output='mpl')
+    cal_drag.circuits()[5].draw(output="mpl", style="iqp")
 
 .. jupyter-execute::
 
@@ -382,7 +377,7 @@ instruction schedule map with this over/under-rotated pulse.
     over_amp = ideal_amp*1.02
     under_amp = ideal_amp*0.98
     print(f"The reported amplitude of the X pulse is {ideal_amp:.4f} which we set as ideal_amp.") 
-    print(f"we use {over_amp:.4f} amplitude for overroation pulse and {under_amp:.4f} for underrotation pulse.")
+    print(f"we use {over_amp:.4f} amplitude for overrotation pulse and {under_amp:.4f} for underrotation pulse.")
     # build the over rotated pulse and add it to the instruction schedule map
     with pulse.build(backend=backend, name="x") as x_over:
         pulse.play(pulse.Drag(x_pulse.duration, over_amp, x_pulse.sigma, x_pulse.beta), d0)
@@ -397,7 +392,7 @@ over/under rotations is the highest.
     
     overamp_exp = FineXAmplitude((qubit,), backend=backend)
     overamp_exp.set_transpile_options(inst_map=inst_map)
-    overamp_exp.circuits()[4].draw(output='mpl')
+    overamp_exp.circuits()[4].draw(output="mpl", style="iqp")
 
 .. jupyter-execute::
 
@@ -441,7 +436,7 @@ error but also its sign.
     scale_under = target_angle / (target_angle + dtheta_under)
     print(f"The ideal angle is {target_angle:.2f} rad. We measured a deviation of {dtheta_over:.3f} rad in over-rotated pulse case.")
     print(f"Thus, scale the {over_amp:.4f} pulse amplitude by {scale_over:.3f} to obtain {over_amp*scale_over:.5f}.")
-    print(f"On the other hand, we measued a deviation of {dtheta_under:.3f} rad in under-rotated pulse case.")
+    print(f"On the other hand, we measured a deviation of {dtheta_under:.3f} rad in under-rotated pulse case.")
     print(f"Thus, scale the {under_amp:.4f} pulse amplitude by {scale_under:.3f} to obtain {under_amp*scale_under:.5f}.")
 
 
@@ -464,7 +459,7 @@ error which we want to correct.
     from qiskit_experiments.library import FineSXAmplitudeCal
 
     amp_cal = FineSXAmplitudeCal((qubit,), cals, backend=backend, schedule_name="sx")
-    amp_cal.circuits()[4].draw(output="mpl")
+    amp_cal.circuits()[4].draw(output="mpl", style="iqp")
 
 Let's run the calibration experiment:
 
@@ -495,7 +490,7 @@ See also
 --------
 
 * API documentation: :mod:`~qiskit_experiments.calibration_management` and :mod:`~qiskit_experiments.library.calibration`
-* Qiskit Textbook: `Calibrating Qubits with Qiskit Pulse <https://qiskit.org/textbook/ch-quantum-hardware/calibrating-qubits-pulse.html>`__
+* Qiskit Textbook: `Calibrating Qubits with Qiskit Pulse <https://github.com/Qiskit/textbook/blob/main/notebooks/quantum-hardware-pulses/calibrating-qubits-pulse.ipynb>`__
 
 
 

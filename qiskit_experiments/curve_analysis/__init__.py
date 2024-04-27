@@ -39,6 +39,7 @@ Data Classes
 .. autosummary::
     :toctree: ../stubs/
 
+    ScatterTable
     SeriesDef
     CurveData
     CurveFitResult
@@ -117,6 +118,7 @@ Utilities
 from .base_curve_analysis import BaseCurveAnalysis
 from .curve_analysis import CurveAnalysis
 from .composite_curve_analysis import CompositeCurveAnalysis
+from .scatter_table import ScatterTable
 from .curve_data import (
     CurveData,
     CurveFitResult,

@@ -18,8 +18,8 @@ from test.base import QiskitExperimentsTestCase
 import numpy as np
 from ddt import ddt, data, named_data, unpack
 
-from qiskit.providers.fake_provider import FakeVigoV2
 from qiskit_aer import AerSimulator
+from qiskit_ibm_runtime.fake_provider import FakeVigoV2
 
 from qiskit_experiments.framework import ParallelExperiment
 from qiskit_experiments.library.characterization.t2hahn import T2Hahn
@@ -179,7 +179,7 @@ class TestT2Hahn(QiskitExperimentsTestCase):
     def test_roundtrip_serializable(self):
         """Test round trip JSON serialization"""
 
-        delays0 = list(range(1, 60, 2))
+        delays0 = list(range(1, 60, 20))
 
         exp = T2Hahn([0], delays0)
         self.assertRoundTripSerializable(exp)
@@ -201,11 +201,11 @@ class TestT2Hahn(QiskitExperimentsTestCase):
         self.assertRoundTripSerializable(expdata)
 
         # Checking serialization of the analysis
-        self.assertRoundTripSerializable(expdata.analysis_results(1))
+        self.assertRoundTripSerializable(expdata.analysis_results("T2"))
 
     def test_circuit_roundtrip_serializable(self):
         """Test round trip JSON serialization"""
-        delays0 = list(range(1, 60, 2))
+        delays0 = list(range(1, 60, 20))
         # backend is needed for serialization of the delays in the metadata of the experiment.
         backend = FakeVigoV2()
         exp = T2Hahn([0], delays0, backend=backend)

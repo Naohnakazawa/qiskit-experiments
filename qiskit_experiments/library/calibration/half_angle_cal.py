@@ -28,7 +28,7 @@ from qiskit_experiments.calibration_management.update_library import BaseUpdater
 
 
 class HalfAngleCal(BaseCalibrationExperiment, HalfAngle):
-    """Calibration version of the half-angle experiment."""
+    """Calibration version of the :class:`.HalfAngle` experiment."""
 
     def __init__(
         self,
@@ -130,7 +130,7 @@ class HalfAngleCal(BaseCalibrationExperiment, HalfAngle):
         in the complex amplitude of the pulse. The update rule for the half angle calibration is
         therefore:
 
-        ..math::
+        .. math::
 
             A \to A \cdot e^{-i{\rm d}\theta_\text{hac}/2}
 

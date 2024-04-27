@@ -91,6 +91,7 @@ Experiment Data Classes
     AnalysisConfig
     ExperimentEncoder
     ExperimentDecoder
+    ArtifactData
     FigureData
 
 .. _composite-experiment:
@@ -101,6 +102,7 @@ Composite Experiment Classes
 .. autosummary::
     :toctree: ../stubs/
 
+    CompositeExperiment
     ParallelExperiment
     BatchExperiment
     CompositeAnalysis
@@ -128,10 +130,15 @@ Experiment Configuration Helper Classes
 from qiskit.providers.options import Options
 from qiskit_experiments.framework.backend_data import BackendData
 from qiskit_experiments.framework.analysis_result import AnalysisResult
-from qiskit_experiments.framework.experiment_data import (
+from qiskit_experiments.framework.status import (
     ExperimentStatus,
     AnalysisStatus,
+    AnalysisCallback,
+)
+from qiskit_experiments.framework.containers import (
+    ArtifactData,
     FigureData,
+    FigureType,
 )
 from .base_analysis import BaseAnalysis
 from .base_experiment import BaseExperiment
@@ -143,8 +150,8 @@ from .experiment_data import ExperimentData
 from .composite import (
     ParallelExperiment,
     BatchExperiment,
+    CompositeExperiment,
     CompositeAnalysis,
 )
 from .json import ExperimentEncoder, ExperimentDecoder
 from .restless_mixin import RestlessMixin
-from .package_deps import numpy_version

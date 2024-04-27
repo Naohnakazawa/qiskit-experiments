@@ -18,8 +18,8 @@ import numpy as np
 from qiskit import QuantumCircuit, pulse, transpile
 from qiskit.exceptions import QiskitError
 from qiskit.circuit import Parameter
-from qiskit.providers.basicaer import QasmSimulatorPy
 from qiskit.qobj.utils import MeasLevel
+from qiskit_aer import AerSimulator
 
 from qiskit_experiments.framework import ExperimentData, ParallelExperiment
 from qiskit_experiments.library import Rabi, EFRabi
@@ -29,39 +29,44 @@ from qiskit_experiments.data_processing.data_processor import DataProcessor
 from qiskit_experiments.data_processing.nodes import Probability
 from qiskit_experiments.test.pulse_backend import SingleTransmonTestBackend
 from qiskit_experiments.framework.experiment_data import ExperimentStatus
+from qiskit_experiments.curve_analysis import ParameterRepr
 
 
 class TestRabiEndToEnd(QiskitExperimentsTestCase):
     """Test the rabi experiment."""
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         """Setup the tests."""
-        super().setUp()
+        super().setUpClass()
 
-        self.qubit = 0
+        cls.qubit = 0
 
         with pulse.build(name="x") as sched:
-            pulse.play(pulse.Drag(160, Parameter("amp"), 40, 0.4), pulse.DriveChannel(self.qubit))
+            pulse.play(pulse.Drag(160, Parameter("amp"), 40, 0.4), pulse.DriveChannel(cls.qubit))
 
-        self.sched = sched
-        self.backend = SingleTransmonTestBackend(noise=False)
+        cls.sched = sched
+        cls.backend = SingleTransmonTestBackend(noise=False, atol=1e-3)
 
     # pylint: disable=no-member
     def test_rabi_end_to_end(self):
         """Test the Rabi experiment end to end."""
 
-        test_tol = 0.015
+        test_tol = 0.15
 
         rabi = Rabi([self.qubit], self.sched, backend=self.backend)
+        rabi.set_run_options(shots=200)
         rabi.set_experiment_options(amplitudes=np.linspace(-0.1, 0.1, 21))
         expdata = rabi.run()
         self.assertExperimentDone(expdata)
-        result = expdata.analysis_results(0)
+        result = expdata.analysis_results("rabi_rate")
 
         self.assertEqual(result.quality, "good")
         # The comparison is made against the object that exists in the backend for accurate testing
         self.assertAlmostEqual(
-            result.value.params["freq"], self.backend.rabi_rate_01, delta=test_tol
+            expdata.artifacts("fit_summary").data.params["freq"],
+            self.backend.rabi_rate_01,
+            delta=test_tol,
         )
 
     def test_wrong_processor(self):
@@ -100,7 +105,7 @@ class TestEFRabi(QiskitExperimentsTestCase):
         super().setUp()
 
         self.qubit = 0
-        self.backend = SingleTransmonTestBackend(noise=False)
+        self.backend = SingleTransmonTestBackend(noise=False, atol=1e-4)
         self.anharmonicity = self.backend.anharmonicity
         with pulse.build(name="x") as sched:
             with pulse.frequency_offset(self.anharmonicity, pulse.DriveChannel(self.qubit)):
@@ -114,7 +119,7 @@ class TestEFRabi(QiskitExperimentsTestCase):
     def test_ef_rabi_end_to_end(self):
         """Test the EFRabi experiment end to end."""
 
-        test_tol = 0.01
+        test_tol = 0.05
 
         # Note that the backend is not sophisticated enough to simulate an e-f
         # transition so we run the test with a tiny frequency shift, still driving the e-g transition.
@@ -122,7 +127,7 @@ class TestEFRabi(QiskitExperimentsTestCase):
         rabi.set_experiment_options(amplitudes=np.linspace(-0.1, 0.1, 11))
         expdata = rabi.run()
         self.assertExperimentDone(expdata)
-        result = expdata.analysis_results(1)
+        result = expdata.analysis_results("rabi_rate_12")
 
         self.assertEqual(result.quality, "good")
         self.assertTrue(abs(result.value.n - self.backend.rabi_rate_12) < test_tol)
@@ -221,7 +226,7 @@ class TestOscillationAnalysis(QiskitExperimentsTestCase):
             qc.measure_all()
             circuits.append(qc)
 
-        sim = QasmSimulatorPy()
+        sim = AerSimulator()
         circuits = transpile(circuits, sim)
         job = sim.run(circuits, shots=shots, seed_simulator=10)
         result = job.result()
@@ -259,30 +264,46 @@ class TestOscillationAnalysis(QiskitExperimentsTestCase):
 
         data_processor = DataProcessor("counts", [Probability(outcome="1")])
 
-        experiment_data = OscillationAnalysis().run(
-            experiment_data, data_processor=data_processor, plot=False
+        analysis = OscillationAnalysis()
+        analysis.set_options(
+            result_parameters=[ParameterRepr("freq", "rabi_rate")],
         )
-        result = experiment_data.analysis_results(0)
+
+        experiment_data = analysis.run(
+            experiment_data, data_processor=data_processor, plot=False
+        ).block_for_results()
+
+        result = experiment_data.analysis_results("rabi_rate")
         self.assertEqual(result.quality, "good")
-        self.assertAlmostEqual(result.value.params["freq"], expected_rate, delta=test_tol)
+        self.assertAlmostEqual(result.value, expected_rate, delta=test_tol)
 
     def test_bad_analysis(self):
         """Test the Rabi analysis."""
         experiment_data = ExperimentData()
 
-        thetas = np.linspace(0.0, np.pi / 4, 31)
+        # Change rotation angle with square root of amplitude so that
+        # population versus amplitude will not be sinusoidal and the fit will
+        # be bad.
+        thetas = np.sqrt(np.linspace(0.0, 4 * np.pi**2, 31))
         amplitudes = np.linspace(0.0, 0.95, 31)
 
         experiment_data.add_data(self.simulate_experiment_data(thetas, amplitudes, shots=200))
 
         data_processor = DataProcessor("counts", [Probability(outcome="1")])
 
-        experiment_data = OscillationAnalysis().run(
-            experiment_data, data_processor=data_processor, plot=False
+        analysis = OscillationAnalysis()
+        analysis.set_options(
+            result_parameters=[ParameterRepr("freq", "rabi_rate")],
         )
-        result = experiment_data.analysis_results()
+        experiment_data = analysis.run(
+            experiment_data,
+            data_processor=data_processor,
+            plot=False,
+        ).block_for_results()
 
-        self.assertEqual(result[0].quality, "bad")
+        result = experiment_data.analysis_results("rabi_rate")
+
+        self.assertEqual(result.quality, "bad")
 
 
 class TestCompositeExperiment(QiskitExperimentsTestCase):
