@@ -35,10 +35,10 @@ os.environ["QISKIT_DOCS"] = "TRUE"
 
 # -- Project information -----------------------------------------------------
 # The short X.Y version
-version = os.getenv("VERSION_STRING", "0.7")
+version = os.getenv("VERSION_STRING", "0.8")
 
 # The full version, including alpha/beta/rc tags
-release = os.getenv("RELEASE_STRING", "0.7.0")
+release = os.getenv("RELEASE_STRING", "0.8.0")
 
 project = "Qiskit Experiments"
 copyright = f"2021-{datetime.date.today().year}, Qiskit Development Team"  # pylint: disable=redefined-builtin
@@ -165,7 +165,7 @@ intersphinx_mapping = {
     "uncertainties": ("https://pythonhosted.org/uncertainties", None),
     "pandas": ("http://pandas.pydata.org/docs/", None),
     "qiskit_aer": ("https://qiskit.github.io/qiskit-aer/", None),
-    "qiskit_dynamics": ("https://qiskit-extensions.github.io/qiskit-dynamics/", None),
+    "qiskit_dynamics": ("https://qiskit-community.github.io/qiskit-dynamics/", None),
     "qiskit_ibm_runtime": ("https://docs.quantum.ibm.com/api/qiskit-ibm-runtime/", None),
 }
 
@@ -176,7 +176,7 @@ if os.getenv("EXPERIMENTS_DEV_DOCS", None):
     rst_prolog = """
 .. note::
     This is the documentation for the current state of the `development branch 
-    <https://github.com/Qiskit-Extensions/qiskit-experiments/tree/main>`_
+    <https://github.com/Qiskit-Community/qiskit-experiments/tree/main>`_
     of Qiskit Experiments. The documentation or APIs here can change prior to being
     released.
 """
