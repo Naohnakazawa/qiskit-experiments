@@ -116,52 +116,52 @@ class RoughEFFrequencyCal(BaseCalibrationExperiment, EFSpectroscopy):
         .. jupyter-execute::
             :hide-code:
 
-	    # backend
-	    from qiskit_experiments.test.pulse_backend import SingleTransmonTestBackend
-	    backend = SingleTransmonTestBackend(5.2e9,-.25e9, 1e9, 0.8e9, 1e4, noise=True, seed=188)
+            # backend
+            from qiskit_experiments.test.pulse_backend import SingleTransmonTestBackend
+            backend = SingleTransmonTestBackend(5.2e9,-.25e9, 1e9, 0.8e9, 1e4, noise=True, seed=188)
 
-	    import warnings
-	    warnings.filterwarnings("ignore",
-                       		    message=".*Due to the deprecation of Qiskit Pulse, experiments involving pulse gate.*",
-                       		    category=DeprecationWarning,
-                       		    )
+            import warnings
+            warnings.filterwarnings("ignore",
+                                    message=".*Due to the deprecation of Qiskit Pulse, experiments involving pulse gate.*",
+                                    category=DeprecationWarning,
+                                    )
 
-	    warnings.filterwarnings("ignore",
-            	                message=".*entire Qiskit Pulse package is being deprecated.*",
-	                        category=DeprecationWarning,
-	                        )
+            warnings.filterwarnings("ignore",
+                                message=".*entire Qiskit Pulse package is being deprecated.*",
+                                category=DeprecationWarning,
+                                )
 
-	    warnings.filterwarnings("ignore",
-	                            message=".*Due to SetFrequency and ShiftFrequency instructions, the digital carrier frequency.*",
-	                            category=UserWarning,
-	                            )
+            warnings.filterwarnings("ignore",
+                                    message=".*Due to SetFrequency and ShiftFrequency instructions, the digital carrier frequency.*",
+                                    category=UserWarning,
+                                    )
 
-	    warnings.filterwarnings("ignore",
-            	                    message=".*Could not determine job completion time. Using.*",
-                        	    category=UserWarning,
-                    	            )
+            warnings.filterwarnings("ignore",
+                                    message=".*Could not determine job completion time. Using.*",
+                                    category=UserWarning,
+                                    )
 
-	 .. jupyter-execute::
+         .. jupyter-execute::
 
-	    import numpy as np
+            import numpy as np
             from qiskit_experiments.calibration_management.calibrations import Calibrations
-	    from qiskit_experiments.calibration_management.basis_gate_library import FixedFrequencyTransmon
+            from qiskit_experiments.calibration_management.basis_gate_library import FixedFrequencyTransmon
             from qiskit_experiments.library.calibration.rough_frequency import RoughEFFrequencyCal
 
-	    qubit=0
-	    library = FixedFrequencyTransmon()
-	    cals = Calibrations.from_backend(backend=backend, libraries=[library])
-	    freq_est = backend.defaults().qubit_freq_est[qubit]
-	    f_12 = freq_est + (-.25e9)
-	    frequencies = np.linspace(f_12-15e6, f_12+15e6, 51)
+            qubit=0
+            library = FixedFrequencyTransmon()
+            cals = Calibrations.from_backend(backend=backend, libraries=[library])
+            freq_est = backend.defaults().qubit_freq_est[qubit]
+            f_12 = freq_est + (-.25e9)
+            frequencies = np.linspace(f_12-15e6, f_12+15e6, 51)
 
-	    exp_cal = RoughEFFrequencyCal((qubit,), cals, frequencies, backend=backend, auto_update=False)
-	    exp_cal.set_experiment_options(amp=0.008)
-	    exp_cal.set_run_options(shots=4000)
+            exp_cal = RoughEFFrequencyCal((qubit,), cals, frequencies, backend=backend, auto_update=False)
+            exp_cal.set_experiment_options(amp=0.008)
+            exp_cal.set_run_options(shots=4000)
 
-	    cal_data = exp_cal.run().block_for_results()
-	    display(cal_data.figure(0))
-	    cal_data.analysis_results(dataframe=True)
+            cal_data = exp_cal.run().block_for_results()
+            display(cal_data.figure(0))
+            cal_data.analysis_results(dataframe=True)
     """
 
     __updater__ = Frequency
