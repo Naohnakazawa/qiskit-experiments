@@ -122,17 +122,19 @@ class RoughEFFrequencyCal(BaseCalibrationExperiment, EFSpectroscopy):
 
             import warnings
             warnings.filterwarnings("ignore",
-                                    message=".*Due to the deprecation of Qiskit Pulse, experiments involving pulse gate.*",
+                                    message=".*Due to the deprecation of Qiskit Pulse,\
+				    experiments involving pulse gate.*",
                                     category=DeprecationWarning,
                                     )
 
             warnings.filterwarnings("ignore",
-                                message=".*entire Qiskit Pulse package is being deprecated.*",
-                                category=DeprecationWarning,
-                                )
+                                    message=".*entire Qiskit Pulse package is being deprecated.*",
+                                    category=DeprecationWarning,
+                                    )
 
             warnings.filterwarnings("ignore",
-                                    message=".*Due to SetFrequency and ShiftFrequency instructions, the digital carrier frequency.*",
+                                    message=".*Due to SetFrequency and ShiftFrequency instructions,\
+				    the digital carrier frequency.*",
                                     category=UserWarning,
                                     )
 
@@ -145,7 +147,8 @@ class RoughEFFrequencyCal(BaseCalibrationExperiment, EFSpectroscopy):
 
             import numpy as np
             from qiskit_experiments.calibration_management.calibrations import Calibrations
-            from qiskit_experiments.calibration_management.basis_gate_library import FixedFrequencyTransmon
+            from qiskit_experiments.calibration_management.basis_gate_library\
+            import FixedFrequencyTransmon
             from qiskit_experiments.library.calibration.rough_frequency import RoughEFFrequencyCal
 
             qubit=0
@@ -155,7 +158,12 @@ class RoughEFFrequencyCal(BaseCalibrationExperiment, EFSpectroscopy):
             f_12 = freq_est + (-.25e9)
             frequencies = np.linspace(f_12-15e6, f_12+15e6, 51)
 
-            exp_cal = RoughEFFrequencyCal((qubit,), cals, frequencies, backend=backend, auto_update=False)
+            exp_cal = RoughEFFrequencyCal((qubit,),
+                                         cals,
+                                         frequencies,
+                                         backend=backend,
+                                         auto_update=False,
+                                         )
             exp_cal.set_experiment_options(amp=0.008)
             exp_cal.set_run_options(shots=4000)
 
