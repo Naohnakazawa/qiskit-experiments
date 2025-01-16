@@ -120,28 +120,10 @@ class RoughEFFrequencyCal(BaseCalibrationExperiment, EFSpectroscopy):
             from qiskit_experiments.test.pulse_backend import SingleTransmonTestBackend
             backend = SingleTransmonTestBackend(5.2e9,-.25e9, 1e9, 0.8e9, 1e4, noise=True, seed=188)
 
-            import warnings
-            warnings.filterwarnings("ignore",
-                                    message=".*Due to the deprecation of Qiskit Pulse,\
-				    experiments involving pulse gate.*",
-                                    category=DeprecationWarning,
-                                    )
-
-            warnings.filterwarnings("ignore",
-                                    message=".*entire Qiskit Pulse package is being deprecated.*",
-                                    category=DeprecationWarning,
-                                    )
-
-            warnings.filterwarnings("ignore",
-                                    message=".*Due to SetFrequency and ShiftFrequency instructions,\
-				    the digital carrier frequency.*",
-                                    category=UserWarning,
-                                    )
-
             warnings.filterwarnings("ignore",
                                     message=".*Could not determine job completion time. Using.*",
                                     category=UserWarning,
-                                    )
+            )
 
          .. jupyter-execute::
 
