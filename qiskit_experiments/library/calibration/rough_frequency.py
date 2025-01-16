@@ -116,16 +116,14 @@ class RoughEFFrequencyCal(BaseCalibrationExperiment, EFSpectroscopy):
         .. jupyter-execute::
             :hide-code:
 
+            import warnings
+            warnings.filterwarnings("ignore", ".*Could not determine job completion time.*", UserWarning)
+
             # backend
             from qiskit_experiments.test.pulse_backend import SingleTransmonTestBackend
             backend = SingleTransmonTestBackend(5.2e9,-.25e9, 1e9, 0.8e9, 1e4, noise=True, seed=188)
 
-            warnings.filterwarnings("ignore",
-                                    message=".*Could not determine job completion time. Using.*",
-                                    category=UserWarning,
-            )
-
-         .. jupyter-execute::
+        .. jupyter-execute::
 
             import numpy as np
             from qiskit_experiments.calibration_management.calibrations import Calibrations
@@ -141,11 +139,11 @@ class RoughEFFrequencyCal(BaseCalibrationExperiment, EFSpectroscopy):
             frequencies = np.linspace(f_12-15e6, f_12+15e6, 51)
 
             exp_cal = RoughEFFrequencyCal((qubit,),
-                                         cals,
-                                         frequencies,
-                                         backend=backend,
-                                         auto_update=False,
-                                         )
+                                          cals,
+                                          frequencies,
+                                          backend=backend,
+                                          auto_update=False,
+					  )
             exp_cal.set_experiment_options(amp=0.008)
             exp_cal.set_run_options(shots=4000)
 
