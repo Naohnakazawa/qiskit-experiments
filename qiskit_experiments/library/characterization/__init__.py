@@ -49,6 +49,7 @@ Experiments
     ResonatorSpectroscopy
     MultiStateDiscrimination
     ZZRamsey
+    EFSpectroscopy
 
 
 Analysis
