@@ -48,6 +48,7 @@ module.
     RoughAmplitudeCal
     RoughXSXAmplitudeCal
     EFRoughXSXAmplitudeCal
+    RoughEFFrequencyCal
 
 Calibrations management
 =======================
