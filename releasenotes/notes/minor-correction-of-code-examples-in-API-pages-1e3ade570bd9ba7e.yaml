@@ -1,7 +1,6 @@
 ---
 other:
   - |
-    Minor mistakes of code examples in API pages are corrected, also,
-    added minimal working code examples to the API pages for the experiments,
-    :class:`~.EFSpectroscopy`,
+    Minor mistakes of code examples in API pages are corrected. Also,
+    a minimal working code example is added to the API page for the experiment,
     :class:`~.RoughEFFrequencyCal`.
